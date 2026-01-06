@@ -1,0 +1,47 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.5'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.mockinterview'
+version = '0.0.1'
+description = 'Mock interview'
+
+bootJar {
+    archiveBaseName.set("q4anda")  // custom JAR name
+    archiveVersion.set(version)                // use project version
+    archiveClassifier.set("")                  // remove '-boot' suffix
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'io.jsonwebtoken:jjwt:0.13.0'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.apache.opennlp:opennlp-tools:2.3.0'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.78.1'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.apache.commons:commons-csv:1.10.0'
+
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
