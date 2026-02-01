@@ -1,7 +1,6 @@
 package com.mockinterview.mockinterview.services;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.mockinterview.mockinterview.Actor;
 import com.mockinterview.mockinterview.CoreConstant;
 import com.mockinterview.mockinterview.CoreConstant.Status;
@@ -17,11 +16,9 @@ import com.mockinterview.mockinterview.repositories.SessionStoreRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import java.security.PrivateKey;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,8 +35,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.Map;
 
 @Service
 public class ActorService implements UserDetailsService {
@@ -60,6 +55,8 @@ public class ActorService implements UserDetailsService {
   private PasswordEncoder passwordEncoder;
   @Autowired
   private EmployeeRepository employeeRepository;
+  @Autowired
+  private KeyService keyService;
 
   public Actor createActor(Map<String, Object> request) {
     String role = request.get("roleCode").toString();
@@ -103,14 +100,13 @@ public class ActorService implements UserDetailsService {
         throw new IllegalArgumentException("Invalid role: " + role);
     }
   }
-  @Autowired
-  private KeyService keyService;
+
   public ResponseEntity<ApiResponse> login(Map<String, Object> credential) throws Exception {
     long currentTimeMillis = System.currentTimeMillis();
     PrivateKey privateKey = keyService.getPrivateKey();
-    String payload = keyService.decrypt((String) credential.get("payload"),privateKey);
-    Gson gson  = new Gson();
-    Map<String,Object> map = gson.fromJson(payload, Map.class);
+    String payload = KeyService.decrypt((String) credential.get("payload"), privateKey);
+    Gson gson = new Gson();
+    Map<String, Object> map = gson.fromJson(payload, Map.class);
     String email = UtilityMethods.stringOf(map.get(CoreConstant.EMAIL_L_CASE));
     Map<String, Object> user = new HashMap<>();
     String roleCode = UtilityMethods.stringOf(map.get("roleCode"));
@@ -123,7 +119,8 @@ public class ActorService implements UserDetailsService {
     if (actor == null) {
       throw new UsernameNotFoundException("user not found");
     }
-    SessionStore sessionStore = sessionStoreRepository.findByEmailAndExpireAtGreaterThanAndValid(email,
+    SessionStore sessionStore = sessionStoreRepository.findByEmailAndExpireAtGreaterThanAndValid(
+        email,
         currentTimeMillis, true);
     if (sessionStore != null) {
       sessionStore.setValid(false);
@@ -157,7 +154,8 @@ public class ActorService implements UserDetailsService {
         .parseClaimsJws(token)
         .getBody();
 
-    sessionStore = new SessionStore(email, token, (Long) claims.get(CoreConstant.ISSUED_AT_L_CASE), (Long) claims.get(CoreConstant.EXPIRE_AT_L_CASE));
+    sessionStore = new SessionStore(email, token, (Long) claims.get(CoreConstant.ISSUED_AT_L_CASE),
+        (Long) claims.get(CoreConstant.EXPIRE_AT_L_CASE));
     sessionStore.setCreatedBy(String.valueOf(actor.getId()));
     sessionStore.setUpdatedBy(String.valueOf(actor.getId()));
     sessionStore.setCreatedOn(currentTimeMillis);
