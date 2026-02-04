@@ -1,5 +1,7 @@
 package com.mockinterview.mockinterview.controller;
 
+import com.google.genai.Client;
+import com.google.genai.types.GenerateContentResponse;
 import com.mockinterview.mockinterview.entities.Question;
 import java.util.List;
 import java.util.Map;
@@ -21,8 +23,8 @@ public class MIController_I {
   @GetMapping("/")
   public ResponseEntity<List<Question>> getProducts(@RequestBody Map<String,Object> requestBody)
       throws Exception {
-    List<Question> savedQuestions = questionService.addQuestions(questions);
-    return ResponseEntity.ok(savedQuestions);
+    System.out.println(response.text());
+    return (ResponseEntity<List<Question>>) ResponseEntity.ok();
   }
 
 }

@@ -1,8 +1,11 @@
 package com.mockinterview.mockinterview.controller;
 
+import com.google.genai.Client;
+import com.google.genai.types.GenerateContentResponse;
 import com.mockinterview.mockinterview.CoreConstant.Status;
 import com.mockinterview.mockinterview.entities.ApiResponse;
 import com.mockinterview.mockinterview.entities.Question;
+import com.mockinterview.mockinterview.gemini.GeminiClient;
 import com.mockinterview.mockinterview.services.ActorService;
 import com.mockinterview.mockinterview.services.KeyService;
 import com.mockinterview.mockinterview.services.QuestionService;
@@ -87,6 +90,9 @@ public class MIController {
   @PostMapping("/login")
   public ResponseEntity<ApiResponse> login(@RequestBody Map<String, Object> credentials)
       throws Exception {
+    GeminiClient geminiClient = GeminiClient.getInstance();
+    String ressponse = geminiClient.generateText("what is special about the day today with respect to india ?");
+    System.out.println(ressponse);
     return actorService.login(credentials);
   }
 
