@@ -90,9 +90,6 @@ public class MIController {
   @PostMapping("/login")
   public ResponseEntity<ApiResponse> login(@RequestBody Map<String, Object> credentials)
       throws Exception {
-    GeminiClient geminiClient = GeminiClient.getInstance();
-    String ressponse = geminiClient.generateText("what is special about the day today with respect to india ?");
-    System.out.println(ressponse);
     return actorService.login(credentials);
   }
 

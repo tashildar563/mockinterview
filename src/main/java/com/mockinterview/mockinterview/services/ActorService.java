@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.mockinterview.mockinterview.Actor;
 import com.mockinterview.mockinterview.CoreConstant;
 import com.mockinterview.mockinterview.CoreConstant.Status;
+import com.mockinterview.mockinterview.SprintAI.UserService;
+import com.mockinterview.mockinterview.SprintAI.entities.User;
 import com.mockinterview.mockinterview.UtilityMethods;
 import com.mockinterview.mockinterview.entities.ApiResponse;
 import com.mockinterview.mockinterview.entities.Candidate;
@@ -100,7 +102,8 @@ public class ActorService implements UserDetailsService {
         throw new IllegalArgumentException("Invalid role: " + role);
     }
   }
-
+  @Autowired
+  private UserService userService;
   public ResponseEntity<ApiResponse> login(Map<String, Object> credential) throws Exception {
     long currentTimeMillis = System.currentTimeMillis();
     PrivateKey privateKey = keyService.getPrivateKey();
@@ -108,15 +111,16 @@ public class ActorService implements UserDetailsService {
     Gson gson = new Gson();
     Map<String, Object> map = gson.fromJson(payload, Map.class);
     String email = UtilityMethods.stringOf(map.get(CoreConstant.EMAIL_L_CASE));
-    Map<String, Object> user = new HashMap<>();
+    Map<String, Object> userMap = new HashMap<>();
     String roleCode = UtilityMethods.stringOf(map.get("roleCode"));
-    Actor actor = null;
+    Optional<User> user = null;
     if (roleCode.equals(CoreConstant.CANDIDATE_U_CASE)) {
-      actor = candidateRepository.findByEmailAndIsActive(email, true);
-      user.put(CoreConstant.ID_L_CASE, actor.getId());
-      user.put(CoreConstant.NAME_L_CASE, actor.getName());
+      user = userService.findByEmail(email);
+//      actor = candidateRepository.findByEmailAndIsActive(email, true);
+      userMap.put(CoreConstant.ID_L_CASE, user.get().getId());
+      userMap.put(CoreConstant.NAME_L_CASE, user.get().getName());
     }
-    if (actor == null) {
+    if (!user.isPresent()) {
       throw new UsernameNotFoundException("user not found");
     }
     SessionStore sessionStore = sessionStoreRepository.findByEmailAndExpireAtGreaterThanAndValid(
@@ -124,7 +128,7 @@ public class ActorService implements UserDetailsService {
         currentTimeMillis, true);
     if (sessionStore != null) {
       sessionStore.setValid(false);
-      sessionStore.setUpdatedBy(String.valueOf(actor.getId()));
+      sessionStore.setUpdatedBy(user.get().getId());
       sessionStore.setUpdatedOn(currentTimeMillis);
       sessionStore.setActive(false);
       sessionStoreRepository.save(sessionStore);
@@ -139,14 +143,14 @@ public class ActorService implements UserDetailsService {
     }
     Authentication authentication = authenticationManager.authenticate(
         new UsernamePasswordAuthenticationToken(
-            actor.getEmail(), UtilityMethods.stringOf(map.get(CoreConstant.PASSWORD_L_CASE))
+            user.get().getEmail(), UtilityMethods.stringOf(map.get(CoreConstant.PASSWORD_L_CASE))
         )
     );
 
     SecurityContextHolder.getContext().setAuthentication(authentication);
 
-    String token = jwtUtil.generateToken(actor.getEmail(), String.valueOf(actor.getId()),
-        actor.getRoleCode());
+    String token = jwtUtil.generateToken(user.get().getEmail(), String.valueOf(user.get().getId()),
+        user.get().getRole().name());
 
     Claims claims = Jwts.parser()
         .setSigningKey(jwtUtil.getSecretKey())
@@ -156,8 +160,8 @@ public class ActorService implements UserDetailsService {
 
     sessionStore = new SessionStore(email, token, (Long) claims.get(CoreConstant.ISSUED_AT_L_CASE),
         (Long) claims.get(CoreConstant.EXPIRE_AT_L_CASE));
-    sessionStore.setCreatedBy(String.valueOf(actor.getId()));
-    sessionStore.setUpdatedBy(String.valueOf(actor.getId()));
+    sessionStore.setCreatedBy(String.valueOf(user.get().getId()));
+    sessionStore.setUpdatedBy(String.valueOf(user.get().getId()));
     sessionStore.setCreatedOn(currentTimeMillis);
     sessionStore.setUpdatedOn(currentTimeMillis);
     sessionStore.setActive(true);

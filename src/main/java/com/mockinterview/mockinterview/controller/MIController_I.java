@@ -23,7 +23,6 @@ public class MIController_I {
   @GetMapping("/")
   public ResponseEntity<List<Question>> getProducts(@RequestBody Map<String,Object> requestBody)
       throws Exception {
-    System.out.println(response.text());
     return (ResponseEntity<List<Question>>) ResponseEntity.ok();
   }
 
