@@ -3,21 +3,28 @@ package com.mockinterview.mockinterview.SprintAI.controller;
 
 import com.mockinterview.mockinterview.SprintAI.response.AuthResponse;
 import com.mockinterview.mockinterview.SprintAI.requests.RegisterRequest;
+import com.mockinterview.mockinterview.SprintAI.response.UserResponse;
 import com.mockinterview.mockinterview.SprintAI.services.UserService;
 import com.mockinterview.mockinterview.SprintAI.entities.User;
 import jakarta.validation.Valid;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api")
 @CrossOrigin(origins = "*") // Allow all origins for testing (change in production!)
-public class AuthController {
+public class SprintAIController {
     
     @Autowired
     private UserService userService;
@@ -50,16 +57,32 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
         }
     }
-    
-    /**
-     * Test endpoint to check if API is working
-     * GET /api/auth/test
-     */
-    @GetMapping("/test")
-    public ResponseEntity<?> test() {
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "SprintAI API is running! 🚀");
-        response.put("timestamp", java.time.LocalDateTime.now().toString());
-        return ResponseEntity.ok(response);
+
+  /**
+   * Get users (optional search)
+   * GET /api/users?search=john
+   */
+  @GetMapping("/users")
+  public ResponseEntity<List<UserResponse>> getUsers(
+      @RequestParam(required = false) String search) {
+
+    List<User> users;
+
+    if (search != null && !search.trim().isEmpty()) {
+      users = userService.searchUsers(search);
+    } else {
+      users = userService.getAllUsers();
     }
+
+    List<UserResponse> response = users.stream()
+        .map(user -> new UserResponse(
+            user.getId(),
+            user.getName(),
+            user.getEmail()
+        ))
+        .toList();
+
+    return ResponseEntity.ok(response);
+  }
+
 }

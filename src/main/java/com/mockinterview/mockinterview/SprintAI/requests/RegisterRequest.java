@@ -1,4 +1,4 @@
-package com.mockinterview.mockinterview.SprintAI;
+package com.mockinterview.mockinterview.SprintAI.requests;
 
 
 import com.mockinterview.mockinterview.SprintAI.enums.UserRole;

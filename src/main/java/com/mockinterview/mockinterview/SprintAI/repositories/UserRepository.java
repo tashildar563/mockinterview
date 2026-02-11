@@ -11,18 +11,23 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends MongoRepository<User, String> {
-    
-    Optional<User> findByEmail(String email);
-    
-    List<User> findByTeamId(String teamId);
-    
-    List<User> findByRole(UserRole role);
-    
-    List<User> findByTeamIdAndRole(String teamId, UserRole role);
-    
-    boolean existsByEmail(String email);
-    
-    List<User> findByActiveTrue();
-    
-    long countByTeamId(String teamId);
+
+  Optional<User> findByEmail(String email);
+
+  List<User> findByTeamId(String teamId);
+
+  List<User> findByRole(UserRole role);
+
+  List<User> findByTeamIdAndRole(String teamId, UserRole role);
+
+  boolean existsByEmail(String email);
+
+  List<User> findByActiveTrue();
+
+  long countByTeamId(String teamId);
+
+  List<User> findByNameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+      String name,
+      String email
+  );
 }

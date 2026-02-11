@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.mockinterview.mockinterview.Actor;
 import com.mockinterview.mockinterview.CoreConstant;
 import com.mockinterview.mockinterview.CoreConstant.Status;
-import com.mockinterview.mockinterview.SprintAI.UserService;
+import com.mockinterview.mockinterview.SprintAI.services.UserService;
 import com.mockinterview.mockinterview.SprintAI.entities.User;
 import com.mockinterview.mockinterview.UtilityMethods;
 import com.mockinterview.mockinterview.entities.ApiResponse;
@@ -59,7 +59,6 @@ public class ActorService implements UserDetailsService {
   private EmployeeRepository employeeRepository;
   @Autowired
   private KeyService keyService;
-
   public Actor createActor(Map<String, Object> request) {
     String role = request.get("roleCode").toString();
     String password = request.get(CoreConstant.PASSWORD_L_CASE).toString();
@@ -102,92 +101,98 @@ public class ActorService implements UserDetailsService {
         throw new IllegalArgumentException("Invalid role: " + role);
     }
   }
+
   @Autowired
   private UserService userService;
+
   public ResponseEntity<ApiResponse> login(Map<String, Object> credential) throws Exception {
-    long currentTimeMillis = System.currentTimeMillis();
-    PrivateKey privateKey = keyService.getPrivateKey();
-    String payload = KeyService.decrypt((String) credential.get("payload"), privateKey);
-    Gson gson = new Gson();
-    Map<String, Object> map = gson.fromJson(payload, Map.class);
-    String email = UtilityMethods.stringOf(map.get(CoreConstant.EMAIL_L_CASE));
-    Map<String, Object> userMap = new HashMap<>();
-    String roleCode = UtilityMethods.stringOf(map.get("roleCode"));
-    Optional<User> user = null;
-    if (roleCode.equals(CoreConstant.CANDIDATE_U_CASE)) {
-      user = userService.findByEmail(email);
+    try {
+      long currentTimeMillis = System.currentTimeMillis();
+      PrivateKey privateKey = keyService.getPrivateKey();
+      String payload = KeyService.decrypt((String) credential.get("payload"), privateKey);
+      Gson gson = new Gson();
+      Map<String, Object> map = gson.fromJson(payload, Map.class);
+      String email = UtilityMethods.stringOf(map.get(CoreConstant.EMAIL_L_CASE));
+      Map<String, Object> userMap = new HashMap<>();
+      String roleCode = UtilityMethods.stringOf(map.get("roleCode"));
+      Optional<User> user = null;
+      if (roleCode.equals(CoreConstant.CANDIDATE_U_CASE)) {
+        user = userService.findByEmail(email);
 //      actor = candidateRepository.findByEmailAndIsActive(email, true);
-      userMap.put(CoreConstant.ID_L_CASE, user.get().getId());
-      userMap.put(CoreConstant.NAME_L_CASE, user.get().getName());
-    }
-    if (!user.isPresent()) {
-      throw new UsernameNotFoundException("user not found");
-    }
-    SessionStore sessionStore = sessionStoreRepository.findByEmailAndExpireAtGreaterThanAndValid(
-        email,
-        currentTimeMillis, true);
-    if (sessionStore != null) {
-      sessionStore.setValid(false);
-      sessionStore.setUpdatedBy(user.get().getId());
+        userMap.put(CoreConstant.ID_L_CASE, user.get().getId());
+        userMap.put(CoreConstant.NAME_L_CASE, user.get().getName());
+      }
+      if (!user.isPresent()) {
+        throw new UsernameNotFoundException("user not found");
+      }
+      SessionStore sessionStore = sessionStoreRepository.findByEmailAndExpireAtGreaterThanAndValid(
+          email,
+          currentTimeMillis, true);
+      if (sessionStore != null) {
+        sessionStore.setValid(false);
+        sessionStore.setUpdatedBy(user.get().getId());
+        sessionStore.setUpdatedOn(currentTimeMillis);
+        sessionStore.setActive(false);
+        sessionStoreRepository.save(sessionStore);
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(new ApiResponse<>(
+                "FAIL",
+                "It looks like you're already logged in elsewhere, logout from your other session to continue.",
+                null
+            ));
+
+      }
+      Authentication authentication = authenticationManager.authenticate(
+          new UsernamePasswordAuthenticationToken(
+              user.get().getEmail(), UtilityMethods.stringOf(map.get(CoreConstant.PASSWORD_L_CASE))
+          )
+      );
+
+      SecurityContextHolder.getContext().setAuthentication(authentication);
+
+      String token = jwtUtil.generateToken(user.get().getEmail(),
+          String.valueOf(user.get().getId()),
+          user.get().getRole().name());
+
+      Claims claims = Jwts.parser()
+          .setSigningKey(jwtUtil.getSecretKey())
+          .build()
+          .parseClaimsJws(token)
+          .getBody();
+
+      sessionStore = new SessionStore(email, token,
+          (Long) claims.get(CoreConstant.ISSUED_AT_L_CASE),
+          (Long) claims.get(CoreConstant.EXPIRE_AT_L_CASE));
+      sessionStore.setCreatedBy(String.valueOf(user.get().getId()));
+      sessionStore.setUpdatedBy(String.valueOf(user.get().getId()));
+      sessionStore.setCreatedOn(currentTimeMillis);
       sessionStore.setUpdatedOn(currentTimeMillis);
-      sessionStore.setActive(false);
-      sessionStoreRepository.save(sessionStore);
-      return ResponseEntity
-          .status(HttpStatus.CONFLICT)
-          .body(new ApiResponse<>(
-              "FAIL",
-              "It looks like you're already logged in elsewhere, logout from your other session to continue.",
-              null
-          ));
-
+      sessionStore.setActive(true);
+      sessionStore = sessionStoreRepository.save(sessionStore);
+      map.put(CoreConstant.TOKEN_L_CASE, sessionStore.getToken());
+      map.remove(CoreConstant.EMAIL_L_CASE);
+      map.remove(CoreConstant.PASSWORD_L_CASE);
+      map.put("user", user);
+      return ResponseEntity.ok(
+          new ApiResponse<>("SUCCESS", "Actor Logged in Successful", map));
+    } catch (Exception e) {
+      System.out.print(e.fillInStackTrace().toString());
+      return ResponseEntity.ok(new ApiResponse<>("FAIL", e.getMessage(), null));
     }
-    Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(
-            user.get().getEmail(), UtilityMethods.stringOf(map.get(CoreConstant.PASSWORD_L_CASE))
-        )
-    );
-
-    SecurityContextHolder.getContext().setAuthentication(authentication);
-
-    String token = jwtUtil.generateToken(user.get().getEmail(), String.valueOf(user.get().getId()),
-        user.get().getRole().name());
-
-    Claims claims = Jwts.parser()
-        .setSigningKey(jwtUtil.getSecretKey())
-        .build()
-        .parseClaimsJws(token)
-        .getBody();
-
-    sessionStore = new SessionStore(email, token, (Long) claims.get(CoreConstant.ISSUED_AT_L_CASE),
-        (Long) claims.get(CoreConstant.EXPIRE_AT_L_CASE));
-    sessionStore.setCreatedBy(String.valueOf(user.get().getId()));
-    sessionStore.setUpdatedBy(String.valueOf(user.get().getId()));
-    sessionStore.setCreatedOn(currentTimeMillis);
-    sessionStore.setUpdatedOn(currentTimeMillis);
-    sessionStore.setActive(true);
-    sessionStore = sessionStoreRepository.save(sessionStore);
-    map.put(CoreConstant.TOKEN_L_CASE, sessionStore.getToken());
-    map.remove(CoreConstant.EMAIL_L_CASE);
-    map.remove(CoreConstant.PASSWORD_L_CASE);
-    map.put("user", user);
-    return ResponseEntity.ok(
-        new ApiResponse<>("SUCCESS", "Actor Logged in Successful", map));
   }
 
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    Actor actorEntity = candidateRepository.findByemail(username);
-    if (actorEntity == null) {
-      actorEntity = employeeRepository.findByemail(username);
+    User userEntity = userService.findByEmail(username).get();
+    if (userEntity == null) {
+      throw new UsernameNotFoundException("User Not found");
     }
-    if (actorEntity != null) {
-      return new org.springframework.security.core.userdetails.User(
-          actorEntity.getEmail(),
-          actorEntity.getPassword(),
-          Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
-      );
-    }
-    throw new UsernameNotFoundException("User Not found");
+    return new org.springframework.security.core.userdetails.User(
+        userEntity.getEmail(),
+        userEntity.getPassword(),
+        Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
+    );
   }
 
   public Map<String, Object> getActorDetails(String id, String roleCode) {
