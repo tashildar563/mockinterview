@@ -36,3 +36,18 @@ out/
 ### VS Code ###
 .vscode/
 .env
+
+# 🔐 Security / Keys
+*.pem
+*.p12
+*.jks
+keystore.*
+keystore_b64.txt
+private_key.*
+public_key.*
+
+# Compiled Java files
+*.class
+
+# Specific files
+FetchPublicKey.java

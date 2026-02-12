@@ -24,14 +24,14 @@ public class GeminiClient {
     return gClient;
   }
 
-  public String generateText(String prompt) {
+  public GenerateContentResponse generateText(String prompt) {
     try {
       GenerateContentResponse response =
           client.models.generateContent(
               "gemini-3-flash-preview",
               prompt,
               null);
-      return response.text();
+      return response;
     } catch (Exception e) {
       throw new RuntimeException("Gemini generation failed", e);
     }

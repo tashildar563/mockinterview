@@ -1,9 +1,13 @@
 package com.mockinterview.mockinterview.SprintAI.controller;
 
 
+import com.mockinterview.mockinterview.SprintAI.entities.Sprint;
+import com.mockinterview.mockinterview.SprintAI.entities.Story;
 import com.mockinterview.mockinterview.SprintAI.response.AuthResponse;
 import com.mockinterview.mockinterview.SprintAI.requests.RegisterRequest;
+import com.mockinterview.mockinterview.SprintAI.response.SprintsResponse;
 import com.mockinterview.mockinterview.SprintAI.response.UserResponse;
+import com.mockinterview.mockinterview.SprintAI.services.SprintService;
 import com.mockinterview.mockinterview.SprintAI.services.UserService;
 import com.mockinterview.mockinterview.SprintAI.entities.User;
 import jakarta.validation.Valid;
@@ -83,6 +87,46 @@ public class SprintAIController {
         .toList();
 
     return ResponseEntity.ok(response);
+  }
+  @Autowired
+  SprintService sprintService;
+
+  @GetMapping("/sprints")
+  public ResponseEntity<List<SprintsResponse>> getSprints(
+      @RequestParam(required = false) String search) {
+
+    List<Sprint> sprints = List.of();
+
+    if (search != null && !search.trim().isEmpty()) {
+      /*TODO : add filter based on search parameter*/
+    } else {
+      sprints = sprintService.getAllUsers();
+    }
+
+    List<SprintsResponse> response = sprints.stream()
+        .map(sprint -> new SprintsResponse(
+            sprint.getId(),
+            sprint.getName(),
+            sprint.getSprintNumber()
+        ))
+        .toList();
+
+    return ResponseEntity.ok(response);
+  }
+  /**
+   * Create a new story
+   * POST /api/stories
+   */
+  @PostMapping("/sprints")
+  public ResponseEntity<?> createStory(@Valid @RequestBody Sprint sprint) {
+    try {
+      Sprint createdSprint = sprintService.createSprint(sprint);
+      return ResponseEntity.status(HttpStatus.CREATED).body(createdSprint);
+    } catch (RuntimeException e) {
+      Map<String, String> error = new HashMap<>();
+      error.put("error", e.getMessage());
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
   }
 
 }
